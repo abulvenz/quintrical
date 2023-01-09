@@ -1,0 +1,9 @@
+{
+  "devDependencies": {
+    "parcel": "^2.8.2"
+  },
+  "dependencies": {
+    "mithril": "^2.2.2",
+    "tagl-mithril": "^1.2.2"
+  }
+}
