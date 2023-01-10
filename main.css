@@ -1,0 +1,54 @@
+body {
+    background-color: whitesmoke;
+}
+
+table {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+td {
+    width: min(3vh, 3vw);
+    height: min(3vh, 3vw);
+    background-color: #ccc;
+}
+
+.green {
+    background-color: green;
+}
+
+.red {
+    background-color: red;
+}
+
+.gray {
+    background-color: gray;
+}
+
+.blue {
+    background-color: blue;
+}
+
+.yellow {
+    background-color: yellow;
+}
+
+.player {
+    border-radius: 25%;
+}
+
+.tl {
+    border-top-left-radius: 50%;
+}
+
+.tr {
+    border-top-right-radius: 50%;
+}
+
+.bl {
+    border-bottom-left-radius: 50%;
+}
+
+.br {
+    border-bottom-right-radius: 50%;
+}
