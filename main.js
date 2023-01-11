@@ -3,7 +3,24 @@ import tagl from "tagl-mithril";
 import { parts } from "./parts";
 
 const { random, min, max, trunc, floor } = Math;
-const { div, table, tr, td, ul, li, pre, hr } = tagl(m);
+const {
+  div,
+  table,
+  tr,
+  td,
+  ul,
+  li,
+  pre,
+  hr,
+  button,
+  label,
+  input,
+  span,
+  h1,
+  select,
+  option,
+  br,
+} = tagl(m);
 
 const use = (v, f) => f(v);
 
@@ -70,7 +87,7 @@ const printShape = (shape) => {
     range(maxCol - minCol + 1).map((col) => " ")
   );
 
-  shape.coords.forEach((p) => (result[p[0] - minRow][p[1] - minCol] = "#"));
+  shape.coords.forEach((p) => (result[p[0] - minRow][p[1] - minCol] = "▣"));
   return result.map((r) => r.join("")).join("\n");
 };
 
@@ -108,25 +125,31 @@ const player = (color, startField, parts) => ({
   parts: parts.slice(0, parts.length),
 });
 
-const players = [
+const createPlayers = () => [
   player("red", [0, 0], parts),
   player("green", [HEIGHT - 1, 0], parts),
   player("yellow", [HEIGHT - 1, WIDTH - 1], parts),
   player("blue", [0, WIDTH - 1], parts),
 ];
 
+let players = createPlayers();
+
 console.log(players);
 
-const field = range(WIDTH * HEIGHT).map((idx) => ({
-  color: undefined,
-  idx,
-}));
+const createField = () =>
+  range(WIDTH * HEIGHT).map((idx) => ({
+    color: undefined,
+    idx,
+  }));
+
+let field = createField();
 
 console.log(field);
 
 const fRC = (row, col) => field[row * WIDTH + col];
 
 const coords = (idx) => ({ row: floor(idx / WIDTH), col: idx % WIDTH });
+const index = (row, col) => row * WIDTH + col;
 
 const onBoard = (row, col) =>
   row >= 0 && row < HEIGHT && col >= 0 && col < WIDTH;
@@ -188,9 +211,6 @@ console.log("shuffled", shuffled([0, 1, 2, 3]));
 //field[137] = { color: "red" };
 let p0Fields = validFields(players[0]);
 
-console.log(p0Fields);
-console.log(p0Fields.find((e) => 76));
-
 const placePart = (color, part) =>
   part.coords.forEach((p) => (fRC(...p).color = color));
 
@@ -226,7 +246,6 @@ const canPlace = (row, col, part, player) => {
         shifted.diff = after.length - before.length;
         shifted.otherDiff = afterOthers.length - beforeOthers.length;
 
-        //     console.log("Placing the part ", shifted.diff, shifted.otherDiff);
         shifted.part = part;
         result.push(shifted);
       }
@@ -277,12 +296,192 @@ const move = (player) => {
   return true;
 };
 
+let step = 0;
+let currentPlayer = 0;
+let inGame = 0;
+
+const runStep = () => {
+  if (currentPlayer === 0) {
+    inGame = 0;
+  }
+
+  inGame += move(players[currentPlayer]) ? 1 : 0;
+  m.redraw();
+
+  if (
+    automatic &&
+    (currentPlayer !== players.length - 1 || inGame > 0) &&
+    step < players.length * parts.length + 10
+  ) {
+    setTimeout(runStep, 0);
+  } else if (currentPlayer !== players.length - 1) {
+    console.log(
+      "InGame " + inGame,
+      "Step " + step + "/" + players.length * parts.length
+    );
+  }
+  step += 1;
+  currentPlayer = (currentPlayer + 1) % players.length;
+  selectedField = -1;
+  selectedPossibility = undefined;
+  playerPossibilities = [];
+};
+
+let automatic = false;
+
+let selectedField = -1;
+let selectedPossibility = undefined;
+
+const clear = () => {
+  automatic = false;
+  players = createPlayers();
+  field = createField();
+  step = 0;
+  currentPlayer = 0;
+  inGame = 0;
+  selectedField = -1;
+  selectedPossibility = undefined;
+  playerPossibilities = [];
+};
+
+let playerPossibilities = [];
+
+const contains = (row, col, part) =>
+  part.coords.find((p) => p[0] === row && p[1] === col) !== undefined;
+
+const game = () => ({});
+
 m.mount(document.body, {
   view: (vnode) =>
     div.container(
+      h1("Quintrical"),
+      selectedPossibility ? pre(printShape(selectedPossibility)) : null,
       table(
-        range(HEIGHT).map((row) =>
-          tr(range(WIDTH).map((col) => td[fRC(row, col).color]()))
+        tr(
+          td(
+            use(validFields(players[currentPlayer]), (pFields) =>
+              table.game(
+                range(HEIGHT).map((row) =>
+                  tr.game(
+                    range(WIDTH).map((col) =>
+                      use(
+                        pFields.find((fidx) => fidx === index(row, col)) !==
+                          undefined,
+                        (validField) =>
+                          td.game[
+                            selectedPossibility &&
+                            contains(row, col, selectedPossibility)
+                              ? "selectedPossibility"
+                              : validField
+                              ? "player.blink"
+                              : ""
+                          ][fRC(row, col).color][
+                            selectedPossibility === undefined &&
+                            selectedField === index(row, col)
+                              ? "selected"
+                              : ""
+                          ]({
+                            onclick: (e) =>
+                              validField
+                                ? (selectedField = index(row, col))
+                                : null,
+                          })
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          ),
+          td(
+            table(
+              use(players[currentPlayer].parts, (parts) =>
+                range(parts.length / 4).map((row) =>
+                  tr(
+                    range(4).map((col) =>
+                      td(
+                        use(parts[row * 4 + col], (part) =>
+                          button[players[currentPlayer].color](
+                            {
+                              onclick: (e) => {
+                                if (selectedField >= 0) {
+                                  const c = coords(selectedField);
+                                  playerPossibilities = canPlace(
+                                    c.row,
+                                    c.col,
+                                    part,
+                                    players[currentPlayer]
+                                  );
+                                  selectedPossibility = playerPossibilities[0];
+                                }
+                              },
+                            },
+                            pre(printShape(part))
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              ),
+              select(
+                {
+                  oninput: (e) =>
+                    (selectedPossibility =
+                      playerPossibilities[+e.target.value]),
+                },
+                playerPossibilities.map((possibility, idx) =>
+                  option(
+                    {
+                      value: idx,
+                      onclick: (e) => {
+                        selectedPossibility = playerPossibilities[idx];
+                      },
+                    },
+                    idx
+                  )
+                )
+              ),
+              selectedPossibility
+                ? button(
+                    {
+                      onclick: (e) => {
+                        placePart(
+                          players[currentPlayer].color,
+                          selectedPossibility
+                        );
+                        players[currentPlayer].parts.splice(
+                          players[currentPlayer].parts.indexOf(
+                            selectedPossibility.part
+                          ),
+                          1
+                        );
+                        selectedPossibility = undefined;
+                        currentPlayer = (currentPlayer + 1) % players.length;
+                        playerPossibilities = [];
+                        selectedField = -1;
+                      },
+                    },
+                    "Place!"
+                  )
+                : null
+            )
+          )
+        ),
+        tr(
+          td(
+            label.switch(
+              input({
+                checked: automatic,
+                type: "checkbox",
+                onchange: (e) => (automatic = e.target.checked) && runStep(),
+              }),
+              span.slider.round()
+            ),
+            "Automatic"
+          ),
+          button({ onclick: runStep }, "Next step"),
+          button({ onclick: clear }, "Clear")
         )
       ),
       ul(
@@ -290,7 +489,7 @@ m.mount(document.body, {
           player.residual
             ? li("Residual " + player.color + ": " + player.residual)
             : li(
-                "Possibities " +
+                "Valid fields " +
                   player.color +
                   ": " +
                   validFields(player).length
@@ -312,32 +511,3 @@ m.mount(document.body, {
       )
     ),
 });
-
-let step = 0;
-let currentPlayer = 0;
-let inGame = 0;
-
-const runStep = () => {
-  if (currentPlayer === 0) {
-    inGame = 0;
-  }
-
-  inGame += move(players[currentPlayer]) ? 1 : 0;
-  m.redraw();
-
-  if (
-    (currentPlayer !== players.length - 1 || inGame > 0) &&
-    step < players.length * parts.length + 10
-  ) {
-    setTimeout(runStep, 0);
-  } else if (currentPlayer !== players.length - 1) {
-    console.log(
-      "InGame " + inGame,
-      "Step " + step + "/" + players.length * parts.length
-    );
-  }
-  step += 1;
-  currentPlayer = (currentPlayer + 1) % players.length;
-};
-
-runStep();

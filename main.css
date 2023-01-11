@@ -2,53 +2,180 @@ body {
     background-color: whitesmoke;
 }
 
-table {
+table.game {
     margin-left: auto;
     margin-right: auto;
 }
 
-td {
+td.game {
     width: min(3vh, 3vw);
     height: min(3vh, 3vw);
     background-color: #ccc;
 }
 
-.green {
+td.green {
     background-color: green;
 }
 
-.red {
+td.red {
     background-color: red;
 }
 
-.gray {
+td.gray {
     background-color: gray;
 }
 
-.blue {
+td.blue {
     background-color: blue;
 }
 
-.yellow {
+td.yellow {
     background-color: yellow;
 }
 
-.player {
+td.player {
     border-radius: 25%;
 }
 
-.tl {
+td.selected {
+    border-radius: 50%;
+}
+
+td.selected-possibility {
+    background-color: aqua;
+}
+
+.blink {
+    animation-name: stretch;
+    animation-duration: 1s;
+    animation-timing-function: ease-out;
+    animation-direction: alternate;
+    animation-iteration-count: infinite;
+    animation-play-state: running;
+}
+
+@keyframes stretch {
+    0% {
+        transform: scale(.95);
+        background-color: #aaa;
+    }
+
+    100% {
+        transform: scale(1.0);
+        background-color: #bbb;
+    }
+}
+
+td.tl {
     border-top-left-radius: 50%;
 }
 
-.tr {
+td.tr {
     border-top-right-radius: 50%;
 }
 
-.bl {
+td.bl {
     border-bottom-left-radius: 50%;
 }
 
-.br {
+td.br {
     border-bottom-right-radius: 50%;
+}
+
+/* The switch - the box around the slider */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 2em;
+    height: 1em;
+}
+
+/* Hide default HTML checkbox */
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+/* The slider */
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    -webkit-transition: .4s;
+    transition: .4s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 1em;
+    width: 1em;
+    left: 0px;
+    bottom: 0px;
+    background-color: white;
+    -webkit-transition: .4s;
+    transition: .4s;
+}
+
+input:checked+.slider {
+    background-color: #2196F3;
+}
+
+input:focus+.slider {
+    box-shadow: 0 0 1px #2196F3;
+}
+
+input:checked+.slider:before {
+    -webkit-transform: translateX(1em);
+    -ms-transform: translateX(1em);
+    transform: translateX(1em);
+}
+
+/* Rounded sliders */
+.slider.round {
+    border-radius: 1em;
+    padding-right: 10px;
+}
+
+.slider.round:before {
+    border-radius: 1em;
+}
+
+h1 {
+    font-family: Mono
+}
+
+pre {
+    line-height: 0.6em;
+    padding: 0px;
+    margin: 5px;
+}
+
+button {
+    margin: 0 0;
+    padding: 0px;
+}
+
+
+
+
+.red {
+    color: red;
+}
+
+.green {
+    color: green;
+}
+
+.blue {
+    color: blue;
+}
+
+.yellow {
+    color: yellow;
 }
