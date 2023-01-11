@@ -9,9 +9,9 @@
   "name": "quintrical",
   "description": "",
   "version": "1.0.0",
-  "main": "main.js",
   "scripts": {
     "start": "parcel index.html",
+    "gh-page": "parcel build --public-url https://abulvenz.github.io/quintrical --dist-dir docs index.html",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
