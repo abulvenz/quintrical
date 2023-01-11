@@ -505,7 +505,13 @@ m.mount(document.body, {
               player.parts.length +
               " pieces to place, number of possibilities " +
               player.possibilities,
-            table(tr(player.parts.map((part) => pre(printShape(part)))))
+            table(
+              tr(
+                player.parts.map((part) =>
+                  td(pre[player.color](printShape(part)))
+                )
+              )
+            )
           ),
         ])
       )
