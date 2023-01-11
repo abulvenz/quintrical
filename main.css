@@ -82,6 +82,11 @@ td.br {
     border-bottom-right-radius: 50%;
 }
 
+.part-button {
+    width: 4em;
+    height: 3em;
+}
+
 /* The switch - the box around the slider */
 .switch {
     position: relative;

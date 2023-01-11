@@ -401,7 +401,7 @@ m.mount(document.body, {
                     range(4).map((col) =>
                       td(
                         use(parts[row * 4 + col], (part) =>
-                          button[players[currentPlayer].color](
+                          button.partButton[players[currentPlayer].color](
                             {
                               onclick: (e) => {
                                 if (selectedField >= 0) {
@@ -423,49 +423,48 @@ m.mount(document.body, {
                     )
                   )
                 )
-              ),
-              select(
-                {
-                  oninput: (e) =>
-                    (selectedPossibility =
-                      playerPossibilities[+e.target.value]),
-                },
-                playerPossibilities.map((possibility, idx) =>
-                  option(
-                    {
-                      value: idx,
-                      onclick: (e) => {
-                        selectedPossibility = playerPossibilities[idx];
-                      },
+              )
+            ),
+            select(
+              {
+                oninput: (e) =>
+                  (selectedPossibility = playerPossibilities[+e.target.value]),
+              },
+              playerPossibilities.map((possibility, idx) =>
+                option(
+                  {
+                    value: idx,
+                    onclick: (e) => {
+                      selectedPossibility = playerPossibilities[idx];
                     },
-                    idx
-                  )
+                  },
+                  idx
                 )
-              ),
-              selectedPossibility
-                ? button(
-                    {
-                      onclick: (e) => {
-                        placePart(
-                          players[currentPlayer].color,
-                          selectedPossibility
-                        );
-                        players[currentPlayer].parts.splice(
-                          players[currentPlayer].parts.indexOf(
-                            selectedPossibility.part
-                          ),
-                          1
-                        );
-                        selectedPossibility = undefined;
-                        currentPlayer = (currentPlayer + 1) % players.length;
-                        playerPossibilities = [];
-                        selectedField = -1;
-                      },
+              )
+            ),
+            selectedPossibility
+              ? button(
+                  {
+                    onclick: (e) => {
+                      placePart(
+                        players[currentPlayer].color,
+                        selectedPossibility
+                      );
+                      players[currentPlayer].parts.splice(
+                        players[currentPlayer].parts.indexOf(
+                          selectedPossibility.part
+                        ),
+                        1
+                      );
+                      selectedPossibility = undefined;
+                      currentPlayer = (currentPlayer + 1) % players.length;
+                      playerPossibilities = [];
+                      selectedField = -1;
                     },
-                    "Place!"
-                  )
-                : null
-            )
+                  },
+                  "Place!"
+                )
+              : null
           )
         ),
         tr(
