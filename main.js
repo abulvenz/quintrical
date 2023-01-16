@@ -132,21 +132,28 @@ const createPlayers = () => [
   player("blue", [0, WIDTH - 1], parts),
 ];
 
-let players = createPlayers();
-
-console.log(players);
-
 const createField = () =>
   range(WIDTH * HEIGHT).map((idx) => ({
     color: undefined,
     idx,
   }));
 
-let field = createField();
+let step = 0;
+let inGame = 0;
+let automatic = false;
 
-console.log(field);
+let state = {
+  players: createPlayers(),
+  field: createField(),
+  currentPlayer: 0,
+  selectedField: -1,
+  selectedPossibility: undefined,
+  playerPossibilities: [],
+};
 
-const fRC = (row, col) => field[row * WIDTH + col];
+console.log(state.field);
+
+const fRC = (row, col) => state.field[row * WIDTH + col];
 
 const coords = (idx) => ({ row: floor(idx / WIDTH), col: idx % WIDTH });
 const index = (row, col) => row * WIDTH + col;
@@ -175,8 +182,7 @@ const isEmpty = (field) => field.color === undefined;
 
 const validFields = (player) =>
   use(
-    field
-      //.filter((f) => isEmpty(f))
+    state.field
       .filter((f, idx) =>
         use(
           coords(idx),
@@ -205,11 +211,7 @@ const shuffled = (arr, result = []) =>
         shuffled(arr, [...result, elem[0]])
       );
 
-console.log("shuffled", shuffled([0, 1, 2, 3]));
-
-// field[100] = { color: "red" };
-//field[137] = { color: "red" };
-let p0Fields = validFields(players[0]);
+let p0Fields = validFields(state.players[0]);
 
 const placePart = (color, part) =>
   part.coords.forEach((p) => (fRC(...p).color = color));
@@ -217,7 +219,7 @@ const placePart = (color, part) =>
 const canPlace = (row, col, part, player) => {
   const result = [];
   const before = validFields(player);
-  const beforeOthers = players
+  const beforeOthers = state.players
     .filter((p) => p !== player)
     .map(validFields)
     .reduce((acc, v) => acc + v, 0);
@@ -236,7 +238,7 @@ const canPlace = (row, col, part, player) => {
         placePart(player.color, shifted);
 
         const after = validFields(player);
-        const afterOthers = players
+        const afterOthers = state.players
           .filter((p) => p !== player)
           .map(validFields)
           .reduce((acc, v) => acc + v, 0);
@@ -296,70 +298,60 @@ const move = (player) => {
   return true;
 };
 
-let step = 0;
-let currentPlayer = 0;
-let inGame = 0;
-
 const runStep = () => {
-  if (currentPlayer === 0) {
+  if (state.currentPlayer === 0) {
     inGame = 0;
   }
 
-  inGame += move(players[currentPlayer]) ? 1 : 0;
+  inGame += move(state.players[state.currentPlayer]) ? 1 : 0;
   m.redraw();
 
   if (
     automatic &&
-    (currentPlayer !== players.length - 1 || inGame > 0) &&
-    step < players.length * parts.length + 10
+    (state.currentPlayer !== state.players.length - 1 || inGame > 0) &&
+    step < state.players.length * parts.length + 10
   ) {
     setTimeout(runStep, 0);
-  } else if (currentPlayer !== players.length - 1) {
+  } else if (state.currentPlayer !== state.players.length - 1) {
     console.log(
       "InGame " + inGame,
-      "Step " + step + "/" + players.length * parts.length
+      "Step " + step + "/" + state.players.length * parts.length
     );
   }
   step += 1;
-  currentPlayer = (currentPlayer + 1) % players.length;
-  selectedField = -1;
-  selectedPossibility = undefined;
-  playerPossibilities = [];
+  state.currentPlayer = (state.currentPlayer + 1) % state.players.length;
+  state.selectedField = -1;
+  state.selectedPossibility = undefined;
+  state.playerPossibilities = [];
 };
-
-let automatic = false;
-
-let selectedField = -1;
-let selectedPossibility = undefined;
 
 const clear = () => {
   automatic = false;
-  players = createPlayers();
-  field = createField();
+  state.players = createPlayers();
+  state.field = createField();
   step = 0;
-  currentPlayer = 0;
+  state.currentPlayer = 0;
   inGame = 0;
-  selectedField = -1;
-  selectedPossibility = undefined;
-  playerPossibilities = [];
+  state.selectedField = -1;
+  state.selectedPossibility = undefined;
+  state.playerPossibilities = [];
 };
-
-let playerPossibilities = [];
 
 const contains = (row, col, part) =>
   part.coords.find((p) => p[0] === row && p[1] === col) !== undefined;
 
 const game = () => ({});
 
+console.log(state.players[0].parts.length);
+
 m.mount(document.body, {
   view: (vnode) =>
     div.container(
       h1("Quintrical"),
-      selectedPossibility ? pre(printShape(selectedPossibility)) : null,
       table(
         tr(
           td(
-            use(validFields(players[currentPlayer]), (pFields) =>
+            use(validFields(state.players[state.currentPlayer]), (pFields) =>
               table.game(
                 range(HEIGHT).map((row) =>
                   tr.game(
@@ -369,21 +361,21 @@ m.mount(document.body, {
                           undefined,
                         (validField) =>
                           td.game[
-                            selectedPossibility &&
-                            contains(row, col, selectedPossibility)
+                            state.selectedPossibility &&
+                            contains(row, col, state.selectedPossibility)
                               ? "selectedPossibility"
                               : validField
                               ? "player.blink"
                               : ""
                           ][fRC(row, col).color][
-                            selectedPossibility === undefined &&
-                            selectedField === index(row, col)
+                            state.selectedPossibility === undefined &&
+                            state.selectedField === index(row, col)
                               ? "selected"
                               : ""
                           ]({
                             onclick: (e) =>
                               validField
-                                ? (selectedField = index(row, col))
+                                ? (state.selectedField = index(row, col))
                                 : null,
                           })
                       )
@@ -394,77 +386,152 @@ m.mount(document.body, {
             )
           ),
           td(
+            h1("Player " + state.players[state.currentPlayer].color),
             table(
-              use(players[currentPlayer].parts, (parts) =>
-                range(parts.length / 4).map((row) =>
+              use(state.players[state.currentPlayer].parts, (parts) =>
+                range(parts.length / 4 + 1).map((row) =>
                   tr(
                     range(4).map((col) =>
-                      td(
-                        use(parts[row * 4 + col], (part) =>
-                          button.partButton[players[currentPlayer].color](
-                            {
-                              onclick: (e) => {
-                                if (selectedField >= 0) {
-                                  const c = coords(selectedField);
-                                  playerPossibilities = canPlace(
-                                    c.row,
-                                    c.col,
-                                    part,
-                                    players[currentPlayer]
-                                  );
-                                  selectedPossibility = playerPossibilities[0];
-                                }
-                              },
-                            },
-                            pre(printShape(part))
+                      row * 4 + col <
+                      state.players[state.currentPlayer].parts.length
+                        ? td(
+                            use(parts[row * 4 + col], (part) =>
+                              button.partButton[
+                                state.players[state.currentPlayer].color
+                              ](
+                                {
+                                  onclick: (e) => {
+                                    if (state.selectedField >= 0) {
+                                      const c = coords(state.selectedField);
+                                      state.playerPossibilities = canPlace(
+                                        c.row,
+                                        c.col,
+                                        part,
+                                        state.players[state.currentPlayer]
+                                      );
+                                      state.selectedPossibility =
+                                        state.playerPossibilities[0];
+                                    }
+                                  },
+                                },
+                                pre(printShape(part))
+                              )
+                            )
                           )
-                        )
-                      )
+                        : null
                     )
                   )
                 )
               )
             ),
-            select(
-              {
-                oninput: (e) =>
-                  (selectedPossibility = playerPossibilities[+e.target.value]),
-              },
-              playerPossibilities.map((possibility, idx) =>
-                option(
+            h1("SOLO"),
+            state.selectedPossibility
+              ? [
+                  table(
+                    tr(
+                      td(
+                        button.partButton(
+                          {
+                            onclick: (e) =>
+                              use(
+                                state.playerPossibilities.indexOf(
+                                  state.selectedPossibility
+                                ) - 1,
+                                (cidx) =>
+                                  use(
+                                    cidx >= state.playerPossibilities.length
+                                      ? 0
+                                      : cidx < 0
+                                      ? state.playerPossibilities.length - 1
+                                      : cidx,
+                                    (ridx) =>
+                                      (state.selectedPossibility =
+                                        state.playerPossibilities[ridx])
+                                  )
+                              ),
+                          },
+                          "<"
+                        )
+                      ),
+                      td(pre.partButton(printShape(state.selectedPossibility))),
+                      td(
+                        button.partButton(
+                          {
+                            onclick: (e) =>
+                              use(
+                                state.playerPossibilities.indexOf(
+                                  state.selectedPossibility
+                                ) + 1,
+                                (cidx) =>
+                                  use(
+                                    cidx >= state.playerPossibilities.length
+                                      ? 0
+                                      : cidx < 0
+                                      ? state.playerPossibilities.length - 1
+                                      : cidx,
+                                    (ridx) =>
+                                      (state.selectedPossibility =
+                                        state.playerPossibilities[ridx])
+                                  )
+                              ),
+                          },
+                          ">"
+                        )
+                      ),
+                      td(
+                        button.partButton(
+                          {
+                            onclick: (e) => {
+                              placePart(
+                                state.players[state.currentPlayer].color,
+                                state.selectedPossibility
+                              );
+                              state.players[state.currentPlayer].parts.splice(
+                                state.players[
+                                  state.currentPlayer
+                                ].parts.indexOf(state.selectedPossibility.part),
+                                1
+                              );
+                              state.selectedPossibility = undefined;
+                              state.currentPlayer =
+                                (state.currentPlayer + 1) %
+                                state.players.length;
+                              state.playerPossibilities = [];
+                              state.selectedField = -1;
+                            },
+                          },
+                          "Place!"
+                        )
+                      )
+                    )
+                  ),
+                  state.playerPossibilities.indexOf(state.selectedPossibility) +
+                    1 +
+                    "/" +
+                    state.playerPossibilities.length,
+                ]
+              : null,
+            0 === 0
+              ? null
+              : select(
                   {
-                    value: idx,
-                    onclick: (e) => {
-                      selectedPossibility = playerPossibilities[idx];
-                    },
+                    oninput: (e) =>
+                      (state.selectedPossibility =
+                        state.playerPossibilities[+e.target.value]),
                   },
-                  idx
+                  state.playerPossibilities.map((possibility, idx) =>
+                    option(
+                      {
+                        value: idx,
+                        onclick: (e) => {
+                          state.selectedPossibility =
+                            state.playerPossibilities[idx];
+                        },
+                      },
+                      idx
+                    )
+                  )
                 )
-              )
-            ),
-            selectedPossibility
-              ? button(
-                  {
-                    onclick: (e) => {
-                      placePart(
-                        players[currentPlayer].color,
-                        selectedPossibility
-                      );
-                      players[currentPlayer].parts.splice(
-                        players[currentPlayer].parts.indexOf(
-                          selectedPossibility.part
-                        ),
-                        1
-                      );
-                      selectedPossibility = undefined;
-                      currentPlayer = (currentPlayer + 1) % players.length;
-                      playerPossibilities = [];
-                      selectedField = -1;
-                    },
-                  },
-                  "Place!"
-                )
-              : null
           )
         ),
         tr(
@@ -484,35 +551,40 @@ m.mount(document.body, {
         )
       ),
       ul(
-        sorted(players, (a, b) => a.residual - b.residual).map((player) => [
-          player.residual
-            ? li("Residual " + player.color + ": " + player.residual)
-            : li(
-                "Valid fields " +
-                  player.color +
-                  ": " +
-                  validFields(player).length
-              ),
-        ])
+        sorted(state.players, (a, b) => a.residual - b.residual).map(
+          (player) => [
+            player.residual
+              ? li("Residual " + player.color + ": " + player.residual)
+              : li(
+                  "Valid fields " +
+                    player.color +
+                    ": " +
+                    validFields(player).length
+                ),
+          ]
+        )
       ),
       hr(),
+      h1("The table"),
       ul(
-        sorted(players, (a, b) => a.residual - b.residual).map((player) => [
-          li(
-            player.color +
-              " has " +
-              player.parts.length +
-              " pieces to place, number of possibilities " +
-              player.possibilities,
-            table(
-              tr(
-                player.parts.map((part) =>
-                  td(pre[player.color](printShape(part)))
+        sorted(state.players, (a, b) => a.residual - b.residual).map(
+          (player) => [
+            li(
+              player.color +
+                " has " +
+                player.parts.length +
+                " pieces to place, number of possibilities " +
+                player.possibilities,
+              table(
+                tr(
+                  player.parts.map((part) =>
+                    td(pre[player.color](printShape(part)))
+                  )
                 )
               )
-            )
-          ),
-        ])
+            ),
+          ]
+        )
       )
     ),
 });
