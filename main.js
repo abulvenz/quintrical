@@ -145,10 +145,46 @@ let automatic = false;
 let state = {
   players: createPlayers(),
   field: createField(),
-  currentPlayer: 0,
+  currentPlayer: -1,
   selectedField: -1,
   selectedPossibility: undefined,
   playerPossibilities: [],
+  pFields: [],
+  selectedPart: undefined,
+  nextPlayer: () => {
+    state.currentPlayer = (state.currentPlayer + 1) % state.players.length;
+    state.selectedPossibility = undefined;
+    state.playerPossibilities = [];
+    state.selectedField = -1;
+    state.selectedPart =
+      state.players[state.currentPlayer].parts[
+        state.players[state.currentPlayer].parts.length - 1
+      ];
+    state.pFields = validFields(state.players[state.currentPlayer]);
+    state.selectedField =
+      state.pFields[0] !== undefined ? state.pFields[0] : -1;
+    state.calculatePossiblePlacements();
+  },
+  selectField: (idx) => {
+    state.selectedField = idx;
+    state.calculatePossiblePlacements();
+  },
+  calculatePossiblePlacements: () => {
+    if (state.selectedField >= 0 && state.selectedPart !== undefined) {
+      const c = coords(state.selectedField);
+      state.playerPossibilities = canPlace(
+        c.row,
+        c.col,
+        state.selectedPart,
+        state.players[state.currentPlayer]
+      );
+      state.selectedPossibility = state.playerPossibilities[0];
+    }
+  },
+  selectPart: (part) => {
+    state.selectedPart = part;
+    state.calculatePossiblePlacements();
+  },
 };
 
 console.log(state.field);
@@ -210,8 +246,6 @@ const shuffled = (arr, result = []) =>
     : use(arr.splice(trunc(random() * arr.length), 1), (elem) =>
         shuffled(arr, [...result, elem[0]])
       );
-
-let p0Fields = validFields(state.players[0]);
 
 const placePart = (color, part) =>
   part.coords.forEach((p) => (fRC(...p).color = color));
@@ -319,10 +353,7 @@ const runStep = () => {
     );
   }
   step += 1;
-  state.currentPlayer = (state.currentPlayer + 1) % state.players.length;
-  state.selectedField = -1;
-  state.selectedPossibility = undefined;
-  state.playerPossibilities = [];
+  state.nextPlayer();
 };
 
 const clear = () => {
@@ -330,11 +361,9 @@ const clear = () => {
   state.players = createPlayers();
   state.field = createField();
   step = 0;
-  state.currentPlayer = 0;
   inGame = 0;
-  state.selectedField = -1;
-  state.selectedPossibility = undefined;
-  state.playerPossibilities = [];
+  state.currentPlayer = -1;
+  state.nextPlayer();
 };
 
 const contains = (row, col, part) =>
@@ -344,6 +373,8 @@ const game = () => ({});
 
 console.log(state.players[0].parts.length);
 
+state.nextPlayer();
+
 m.mount(document.body, {
   view: (vnode) =>
     div.container(
@@ -351,34 +382,32 @@ m.mount(document.body, {
       table(
         tr(
           td(
-            use(validFields(state.players[state.currentPlayer]), (pFields) =>
-              table.game(
-                range(HEIGHT).map((row) =>
-                  tr.game(
-                    range(WIDTH).map((col) =>
-                      use(
-                        pFields.find((fidx) => fidx === index(row, col)) !==
-                          undefined,
-                        (validField) =>
-                          td.game[
-                            state.selectedPossibility &&
-                            contains(row, col, state.selectedPossibility)
-                              ? "selectedPossibility"
-                              : validField
-                              ? "player.blink"
-                              : ""
-                          ][fRC(row, col).color][
-                            state.selectedPossibility === undefined &&
-                            state.selectedField === index(row, col)
-                              ? "selected"
-                              : ""
-                          ]({
-                            onclick: (e) =>
-                              validField
-                                ? (state.selectedField = index(row, col))
-                                : null,
-                          })
-                      )
+            table.game(
+              range(HEIGHT).map((row) =>
+                tr.game(
+                  range(WIDTH).map((col) =>
+                    use(
+                      state.pFields.find((fidx) => fidx === index(row, col)) !==
+                        undefined,
+                      (validField) =>
+                        td.game[
+                          state.selectedPossibility &&
+                          contains(row, col, state.selectedPossibility)
+                            ? "selectedPossibility"
+                            : validField
+                            ? "player.blink"
+                            : ""
+                        ][fRC(row, col).color][
+                          state.selectedPossibility === undefined &&
+                          state.selectedField === index(row, col)
+                            ? "selected"
+                            : ""
+                        ]({
+                          onclick: (e) =>
+                            validField
+                              ? state.selectField(index(row, col))
+                              : null,
+                        })
                     )
                   )
                 )
@@ -386,6 +415,46 @@ m.mount(document.body, {
             )
           ),
           td(
+            table(
+              tr(
+                td(
+                  button.partButton(
+                    {
+                      onclick: (e) =>
+                        use(
+                          state.pFields.indexOf(state.selectedField) - 1,
+                          (pfield) =>
+                            use(
+                              pfield >= 0 ? pfield : state.pFields.length - 1,
+                              (pf) => state.selectField(state.pFields[pf])
+                            )
+                        ),
+                    },
+                    "<"
+                  )
+                ),
+                td.partButton(
+                  state.pFields.indexOf(state.selectedField) +
+                    1 +
+                    "/" +
+                    state.pFields.length
+                ),
+                td(
+                  button.partButton(
+                    {
+                      onclick: (e) =>
+                        use(
+                          (state.pFields.indexOf(state.selectedField) + 1) %
+                            state.pFields.length,
+                          (pf) => state.selectField(state.pFields[pf])
+                        ),
+                    },
+                    ">"
+                  )
+                )
+              )
+            ),
+
             h1("Player " + state.players[state.currentPlayer].color),
             table(
               use(state.players[state.currentPlayer].parts, (parts) =>
@@ -401,17 +470,7 @@ m.mount(document.body, {
                               ](
                                 {
                                   onclick: (e) => {
-                                    if (state.selectedField >= 0) {
-                                      const c = coords(state.selectedField);
-                                      state.playerPossibilities = canPlace(
-                                        c.row,
-                                        c.col,
-                                        part,
-                                        state.players[state.currentPlayer]
-                                      );
-                                      state.selectedPossibility =
-                                        state.playerPossibilities[0];
-                                    }
+                                    state.selectPart(part);
                                   },
                                 },
                                 pre(printShape(part))
@@ -492,12 +551,7 @@ m.mount(document.body, {
                                 ].parts.indexOf(state.selectedPossibility.part),
                                 1
                               );
-                              state.selectedPossibility = undefined;
-                              state.currentPlayer =
-                                (state.currentPlayer + 1) %
-                                state.players.length;
-                              state.playerPossibilities = [];
-                              state.selectedField = -1;
+                              state.nextPlayer();
                             },
                           },
                           "Place!"
