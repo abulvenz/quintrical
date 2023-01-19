@@ -24,8 +24,8 @@ const {
 
 const use = (v, f) => f(v);
 
-const WIDTH = 20;
-const HEIGHT = 20;
+const WIDTH = 21;
+const HEIGHT = 21;
 
 const range2 = (N) => {
   const r = [];
@@ -41,7 +41,8 @@ const range = (() => {
   };
 })();
 
-const isDivisible = (n, d) => n % d === 0;
+const randomElement = (arr) => arr[trunc(random() * arr.length)];
+
 const identity = (e) => e;
 
 const sorted = (arr, comparison) => arr.map(identity).sort(comparison);
@@ -64,12 +65,14 @@ const flip = (shape) => ({
   coords: shape.coords.map(flipPoint).sort(compare),
 });
 
-const normalizePoint = (p0) => (p) => [p[0] - p0[0], p[1] - p0[1]];
+const shiftPoint = (p0) => (p) => [p[0] - p0[0], p[1] - p0[1]];
 
-const normalize = (shape, offset = shape.coords[0]) => ({
+const shift = (shape, offset) => ({
   ...shape,
-  coords: shape.coords.map(normalizePoint(offset)),
+  coords: shape.coords.map(shiftPoint(offset)),
 });
+
+const normalize = (shape) => shift(shape, shape.coords[0]);
 
 const isEqualPoint = (p0, p1) => p0[0] === p1[0] && p0[1] === p1[1];
 
@@ -91,7 +94,7 @@ const printShape = (shape) => {
   return result.map((r) => r.join("")).join("\n");
 };
 
-const permutations = [
+const transformations = [
   [identity],
   [rotate, normalize],
   [rotate, rotate, normalize],
@@ -105,7 +108,7 @@ const permutations = [
 const findValidTransformations = (shape) => {
   const result = [];
 
-  permutations.forEach((perm) => {
+  transformations.forEach((perm) => {
     const newTransformation = perm.reduce((acc, v) => (acc = v(acc)), shape);
 
     if (!result.some((trans) => isEqual(trans, newTransformation))) {
@@ -171,7 +174,7 @@ let state = {
   },
   calculatePossiblePlacements: () => {
     if (state.selectedField >= 0 && state.selectedPart !== undefined) {
-      const c = coords(state.selectedField);
+      const c = rcOfIdx(state.selectedField);
       state.playerPossibilities = canPlace(
         c.row,
         c.col,
@@ -187,58 +190,67 @@ let state = {
   },
 };
 
-console.log(state.field);
+const fieldAtRC = (row, col) => state.field[row * WIDTH + col];
 
-const fRC = (row, col) => state.field[row * WIDTH + col];
+const rcOfIdx = (idx) => ({ row: floor(idx / WIDTH), col: idx % WIDTH });
+const indexOfRC = (row, col) => row * WIDTH + col;
 
-const coords = (idx) => ({ row: floor(idx / WIDTH), col: idx % WIDTH });
-const index = (row, col) => row * WIDTH + col;
-
-const onBoard = (row, col) =>
+const onBoardRC = (row, col) =>
   row >= 0 && row < HEIGHT && col >= 0 && col < WIDTH;
 
+/**
+ * Creates an array of [row, column] array that are
+ * adjacent to the given row and column and north, south,
+ * east and west of it and still on the field
+ */
 const plusNeighbors = (row, col) =>
   [
     [row - 1, col],
     [row + 1, col],
     [row, col - 1],
     [row, col + 1],
-  ].filter((p) => onBoard(...p));
+  ].filter((p) => onBoardRC(...p));
+
+/**
+ * Creates an array of [row, column] array that are
+ * adjacent to the given row and column and north-west, north-east,
+ * south-west and south-east of it and still on the field
+ */
 const xNeighbors = (row, col) =>
   [
     [row - 1, col - 1],
     [row + 1, col - 1],
     [row + 1, col + 1],
     [row - 1, col + 1],
-  ].filter((p) => onBoard(...p));
+  ].filter((p) => onBoardRC(...p));
 
-const hasColor = (c, field) => field.color === c;
+const fieldHasColor = (c, field) => field.color === c;
 
-const isEmpty = (field) => field.color === undefined;
+const isEmptyField = (field) => field.color === undefined;
 
 const validFields = (player) =>
   use(
     state.field
       .filter((f, idx) =>
         use(
-          coords(idx),
+          rcOfIdx(idx),
           (fCoords) =>
-            isEmpty(f) &&
+            isEmptyField(f) &&
             xNeighbors(fCoords.row, fCoords.col).some((n) =>
-              hasColor(player.color, fRC(...n))
+              fieldHasColor(player.color, fieldAtRC(...n))
             ) &&
             plusNeighbors(fCoords.row, fCoords.col).every(
-              (n) => !hasColor(player.color, fRC(...n))
+              (n) => !fieldHasColor(player.color, fieldAtRC(...n))
             )
         )
       )
       .map((f) => f.idx)
       .filter((e) => !!e),
     (validFields) =>
-      validFields.length > 0 ? validFields : [fRC(...player.startField).idx]
+      validFields.length > 0
+        ? validFields
+        : [fieldAtRC(...player.startField).idx]
   );
-
-const randomElement = (arr) => arr[trunc(random() * arr.length)];
 
 const shuffled = (arr, result = []) =>
   arr.length === 0
@@ -248,7 +260,7 @@ const shuffled = (arr, result = []) =>
       );
 
 const placePart = (color, part) =>
-  part.coords.forEach((p) => (fRC(...p).color = color));
+  part.coords.forEach((p) => (fieldAtRC(...p).color = color));
 
 const canPlace = (row, col, part, player) => {
   const result = [];
@@ -260,13 +272,15 @@ const canPlace = (row, col, part, player) => {
 
   part.validTransformations.filter((shape) => {
     shape.coords.forEach((c) => {
-      const shifted = normalize(shape, [c[0] - row, c[1] - col]);
+      const shifted = shift(shape, [c[0] - row, c[1] - col]);
       if (
         shifted.coords.every(
           (p) =>
-            onBoard(...p) &&
-            isEmpty(fRC(...p)) &&
-            plusNeighbors(...p).every((n) => !hasColor(player.color, fRC(...n)))
+            onBoardRC(...p) &&
+            isEmptyField(fieldAtRC(...p)) &&
+            plusNeighbors(...p).every(
+              (n) => !fieldHasColor(player.color, fieldAtRC(...n))
+            )
         )
       ) {
         placePart(player.color, shifted);
@@ -300,7 +314,7 @@ const move = (player) => {
 
   let possibilities = [];
 
-  pFields.map(coords).forEach((f) => {
+  pFields.map(rcOfIdx).forEach((f) => {
     player.parts.forEach((part) => {
       const possibilitiess = canPlace(f.row, f.col, part, player);
 
@@ -371,8 +385,6 @@ const contains = (row, col, part) =>
 
 const game = () => ({});
 
-console.log(state.players[0].parts.length);
-
 state.nextPlayer();
 
 m.mount(document.body, {
@@ -387,8 +399,9 @@ m.mount(document.body, {
                 tr.game(
                   range(WIDTH).map((col) =>
                     use(
-                      state.pFields.find((fidx) => fidx === index(row, col)) !==
-                        undefined,
+                      state.pFields.find(
+                        (fidx) => fidx === indexOfRC(row, col)
+                      ) !== undefined,
                       (validField) =>
                         td.game[
                           state.selectedPossibility &&
@@ -397,15 +410,15 @@ m.mount(document.body, {
                             : validField
                             ? "player.blink"
                             : ""
-                        ][fRC(row, col).color][
+                        ][fieldAtRC(row, col).color][
                           state.selectedPossibility === undefined &&
-                          state.selectedField === index(row, col)
+                          state.selectedField === indexOfRC(row, col)
                             ? "selected"
                             : ""
                         ]({
                           onclick: (e) =>
                             validField
-                              ? state.selectField(index(row, col))
+                              ? state.selectField(indexOfRC(row, col))
                               : null,
                         })
                     )
